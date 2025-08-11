@@ -95,6 +95,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
   const changePassword = async (currentPassword, newPassword) => {
     try {
       await axios.put('/api/user/change-password', { currentPassword, newPassword });
@@ -151,6 +155,7 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     updateProfile,
+    updateUser,
     changePassword,
     forgotPassword,
     resetPassword,

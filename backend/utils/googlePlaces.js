@@ -1,4 +1,5 @@
 require('dotenv').config({ path: './config.env' });
+const axios = require('axios');
 
 /**
  * Get coordinates for a location using Google Geocoding API
@@ -13,13 +14,8 @@ async function getCoordinates(address) {
 
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
 
-    const response = await fetch(geocodeUrl);
-
-    if (!response.ok) {
-      throw new Error(`Geocoding API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const response = await axios.get(geocodeUrl);
+    const data = response.data;
 
     if (data.status !== 'OK' || !data.results || data.results.length === 0) {
       throw new Error(`Geocoding failed for ${address}: ${data.status}`);
@@ -38,7 +34,7 @@ async function getCoordinates(address) {
 }
 
 /**
- * Search for tourist attractions near coordinates using Google Places API
+ * Search for tourist attractions near coordinates using Google Places API with pagination
  * @param {number} latitude - Latitude coordinate
  * @param {number} longitude - Longitude coordinate
  * @param {number} radius - Search radius in meters (default: 5000)
@@ -51,30 +47,47 @@ async function searchNearbyAttractions(latitude, longitude, radius = 5000, limit
       throw new Error('GOOGLE_MAPS_API_KEY is not configured');
     }
 
-    const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=tourist_attraction&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    let allResults = [];
+    let nextPageToken = null;
+    let attempts = 0;
+    const maxAttempts = 3; // Google allows up to 3 pages (60 results total)
 
-    const response = await fetch(nearbyUrl);
+    do {
+      let nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=tourist_attraction&key=${process.env.GOOGLE_MAPS_API_KEY}`;
 
-    if (!response.ok) {
-      throw new Error(`Places API error: ${response.status} ${response.statusText}`);
-    }
+      if (nextPageToken) {
+        nearbyUrl += `&pagetoken=${nextPageToken}`;
+      }
 
-    const data = await response.json();
+      const response = await axios.get(nearbyUrl);
+      const data = response.data;
 
-    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      throw new Error(`Places API failed: ${data.status}`);
-    }
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        throw new Error(`Places API failed: ${data.status}`);
+      }
 
-    if (!data.results || data.results.length === 0) {
-      return [];
-    }
+      if (data.results && data.results.length > 0) {
+        allResults.push(...data.results);
+      }
+
+      nextPageToken = data.next_page_token;
+      attempts++;
+
+      // If there's a next page token, wait a bit before making the next request
+      // Google requires a short delay between pagination requests
+      if (nextPageToken && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+    } while (nextPageToken && attempts < maxAttempts && allResults.length < limit);
 
     // Sort by rating (highest first) and limit results
-    const sortedResults = data.results
+    const sortedResults = allResults
       .filter(place => place.rating) // Only include places with ratings
       .sort((a, b) => (b.rating || 0) - (a.rating || 0))
       .slice(0, limit);
 
+    console.log(`Found ${sortedResults.length} attractions (from ${allResults.length} total results)`);
     return sortedResults;
   } catch (error) {
     console.error(`Places API error for ${latitude},${longitude}:`, error.message);
@@ -95,13 +108,8 @@ async function getPlaceDetails(placeId) {
 
     const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,rating,opening_hours,photos,types,website,formatted_phone_number&key=${process.env.GOOGLE_MAPS_API_KEY}`;
 
-    const response = await fetch(detailsUrl);
-
-    if (!response.ok) {
-      throw new Error(`Place Details API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const response = await axios.get(detailsUrl);
+    const data = response.data;
 
     if (data.status !== 'OK') {
       throw new Error(`Place Details API failed: ${data.status}`);
@@ -140,9 +148,24 @@ async function getLocationAttractions(locationName, limit = 5) {
     console.log(`Getting coordinates for ${locationName}...`);
     const coords = await getCoordinates(locationName);
 
-    // Step 2: Search for nearby attractions
+    // Step 2: Search for nearby attractions with larger radius if needed
     console.log(`Searching for attractions near ${locationName}...`);
-    const attractions = await searchNearbyAttractions(coords.latitude, coords.longitude, 5000, limit);
+    let attractions = await searchNearbyAttractions(coords.latitude, coords.longitude, 5000, limit);
+
+    // If we don't have enough attractions, try with larger radius
+    if (attractions.length < limit) {
+      console.log(`Only found ${attractions.length} attractions, trying with larger radius...`);
+      const largerRadiusAttractions = await searchNearbyAttractions(coords.latitude, coords.longitude, 10000, limit);
+
+      // Merge and deduplicate attractions
+      const allAttractions = [...attractions, ...largerRadiusAttractions];
+      const uniqueAttractions = allAttractions.filter((attraction, index, self) =>
+        index === self.findIndex(a => a.place_id === attraction.place_id)
+      );
+
+      attractions = uniqueAttractions.slice(0, limit);
+      console.log(`After larger radius search: ${attractions.length} attractions`);
+    }
 
     if (attractions.length === 0) {
       console.log(`No attractions found for ${locationName}`);
@@ -253,10 +276,70 @@ function getFallbackAttractions(locationName, limit = 5) {
       { name: 'Rohtang Pass', rating: 4.2, types: ['tourist_attraction', 'mountain'], price_level: 2 },
       { name: 'Mall Road', rating: 4.1, types: ['tourist_attraction', 'shopping'], price_level: 2 },
       { name: 'Manu Temple', rating: 4.0, types: ['tourist_attraction', 'temple'], price_level: 1 }
+    ],
+    'Haryana': [
+      { name: 'Kurukshetra Panorama and Science Centre', rating: 4.3, types: ['tourist_attraction', 'museum'], price_level: 2 },
+      { name: 'Pinjore Gardens', rating: 4.2, types: ['tourist_attraction', 'park'], price_level: 1 },
+      { name: 'Sultanpur National Park', rating: 4.1, types: ['tourist_attraction', 'park'], price_level: 1 },
+      { name: 'Badkhal Lake', rating: 4.0, types: ['tourist_attraction', 'lake'], price_level: 1 },
+      { name: 'Damdama Lake', rating: 4.1, types: ['tourist_attraction', 'lake'], price_level: 1 }
+    ],
+    'Kolkata': [
+      { name: 'Victoria Memorial', rating: 4.6, types: ['tourist_attraction', 'museum'], price_level: 2 },
+      { name: 'Howrah Bridge', rating: 4.4, types: ['tourist_attraction', 'bridge'], price_level: 1 },
+      { name: 'Dakshineswar Kali Temple', rating: 4.3, types: ['tourist_attraction', 'temple'], price_level: 1 },
+      { name: 'Belur Math', rating: 4.2, types: ['tourist_attraction', 'temple'], price_level: 1 },
+      { name: 'Indian Museum', rating: 4.1, types: ['tourist_attraction', 'museum'], price_level: 2 }
+    ],
+    'Bangalore': [
+      { name: 'Lalbagh Botanical Garden', rating: 4.4, types: ['tourist_attraction', 'park'], price_level: 1 },
+      { name: 'Cubbon Park', rating: 4.3, types: ['tourist_attraction', 'park'], price_level: 1 },
+      { name: 'Bangalore Palace', rating: 4.2, types: ['tourist_attraction', 'palace'], price_level: 2 },
+      { name: 'Tipu Sultan\'s Summer Palace', rating: 4.1, types: ['tourist_attraction', 'palace'], price_level: 2 },
+      { name: 'Vidhana Soudha', rating: 4.0, types: ['tourist_attraction', 'government'], price_level: 1 }
+    ],
+    'Chennai': [
+      { name: 'Marina Beach', rating: 4.3, types: ['tourist_attraction', 'beach'], price_level: 1 },
+      { name: 'Kapaleeshwarar Temple', rating: 4.2, types: ['tourist_attraction', 'temple'], price_level: 1 },
+      { name: 'Fort St. George', rating: 4.1, types: ['tourist_attraction', 'fort'], price_level: 2 },
+      { name: 'Valluvar Kottam', rating: 4.0, types: ['tourist_attraction', 'monument'], price_level: 1 },
+      { name: 'Government Museum', rating: 4.1, types: ['tourist_attraction', 'museum'], price_level: 2 }
+    ],
+    'Pune': [
+      { name: 'Shaniwar Wada', rating: 4.2, types: ['tourist_attraction', 'fort'], price_level: 2 },
+      { name: 'Aga Khan Palace', rating: 4.3, types: ['tourist_attraction', 'palace'], price_level: 2 },
+      { name: 'Sinhagad Fort', rating: 4.1, types: ['tourist_attraction', 'fort'], price_level: 1 },
+      { name: 'Dagdusheth Halwai Ganapati Temple', rating: 4.0, types: ['tourist_attraction', 'temple'], price_level: 1 },
+      { name: 'Khadakwasla Dam', rating: 4.1, types: ['tourist_attraction', 'dam'], price_level: 1 }
     ]
   };
 
-  const attractions = fallbackAttractions[locationName] || fallbackAttractions['Mumbai'];
+  // Try to find exact match first
+  let attractions = fallbackAttractions[locationName];
+
+  // If no exact match, try to find partial matches (e.g., "Mumbai, India" should match "Mumbai")
+  if (!attractions) {
+    const locationLower = locationName.toLowerCase();
+    for (const [key, value] of Object.entries(fallbackAttractions)) {
+      if (locationLower.includes(key.toLowerCase()) || key.toLowerCase().includes(locationLower)) {
+        attractions = value;
+        console.log(`Found partial match: ${key} for ${locationName}`);
+        break;
+      }
+    }
+  }
+
+  // If still no match, create generic attractions for the location
+  if (!attractions) {
+    console.log(`No fallback data found for ${locationName}, creating generic attractions`);
+    attractions = [
+      { name: `${locationName} City Center`, rating: 4.0, types: ['tourist_attraction', 'point_of_interest'], price_level: 1 },
+      { name: `${locationName} Historical Site`, rating: 4.1, types: ['tourist_attraction', 'historic'], price_level: 1 },
+      { name: `${locationName} Local Market`, rating: 3.9, types: ['tourist_attraction', 'shopping'], price_level: 1 },
+      { name: `${locationName} Cultural Center`, rating: 4.0, types: ['tourist_attraction', 'cultural'], price_level: 2 },
+      { name: `${locationName} Nature Park`, rating: 4.1, types: ['tourist_attraction', 'park'], price_level: 1 }
+    ];
+  }
 
   return attractions.slice(0, limit).map((attraction, index) => ({
     name: attraction.name,

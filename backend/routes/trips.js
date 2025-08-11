@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const travelService = require('../utils/travelService');
+const { authenticateToken } = require('../middleware/auth');
 require('dotenv').config({ path: './config.env' });
 
 // Helper function to get estimated directions
@@ -44,7 +45,7 @@ function getEstimatedDirections(origin, destination, waypoints) {
 }
 
 // Search for places (autocomplete) - Using fallback data
-router.get('/search-places', async (req, res) => {
+router.get('/search-places', authenticateToken, async (req, res) => {
   try {
     const { query } = req.query;
 
@@ -106,7 +107,7 @@ router.get('/search-places', async (req, res) => {
 });
 
 // Get place details with coordinates
-router.get('/place-details/:placeId', async (req, res) => {
+router.get('/place-details/:placeId', authenticateToken, async (req, res) => {
   try {
     const { placeId } = req.params;
 
@@ -139,7 +140,7 @@ router.get('/place-details/:placeId', async (req, res) => {
 });
 
 // Get detailed directions with waypoints
-router.get('/directions', async (req, res) => {
+router.get('/directions', authenticateToken, async (req, res) => {
   try {
     const { origin, destination, waypoints } = req.query;
 
@@ -166,7 +167,7 @@ router.get('/directions', async (req, res) => {
 });
 
 // Search for attractions near multiple places
-router.get('/attractions', async (req, res) => {
+router.get('/attractions', authenticateToken, async (req, res) => {
   try {
     const { locations, radius = 50000 } = req.query;
 
@@ -199,7 +200,7 @@ router.get('/attractions', async (req, res) => {
 });
 
 // Get real-time transportation options
-router.get('/transport-options', async (req, res) => {
+router.get('/transport-options', authenticateToken, async (req, res) => {
   try {
     const { origin, destination, date, travelers = 1 } = req.query;
 
@@ -230,7 +231,7 @@ router.get('/transport-options', async (req, res) => {
 });
 
 // Get real-time hotel options
-router.get('/hotel-options', async (req, res) => {
+router.get('/hotel-options', authenticateToken, async (req, res) => {
   try {
     const { location, checkIn, checkOut, adults = 1, rooms = 1 } = req.query;
 
@@ -258,7 +259,7 @@ router.get('/hotel-options', async (req, res) => {
 });
 
 // Generate comprehensive travel packages with real-time data
-router.post('/generate-packages', async (req, res) => {
+router.post('/generate-packages', authenticateToken, async (req, res) => {
   try {
     const { startPlace, endPlace, stops, startDate, endDate, travelers, budget, tripType } = req.body;
 
@@ -286,7 +287,7 @@ router.post('/generate-packages', async (req, res) => {
 });
 
 // Get real-time weather for travel planning
-router.get('/weather/:location', async (req, res) => {
+router.get('/weather/:location', authenticateToken, async (req, res) => {
   try {
     const { location } = req.params;
 
@@ -316,7 +317,7 @@ router.get('/weather/:location', async (req, res) => {
 });
 
 // Get travel tips and recommendations
-router.get('/travel-tips/:destination', async (req, res) => {
+router.get('/travel-tips/:destination', authenticateToken, async (req, res) => {
   try {
     const { destination } = req.params;
 

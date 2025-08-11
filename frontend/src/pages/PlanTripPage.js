@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   Calendar,
@@ -12,7 +12,6 @@ import {
   Users,
   Navigation,
   Map,
-  DollarSign,
   Hotel,
   Utensils,
   Car,
@@ -24,12 +23,27 @@ import {
   TrendingUp,
   Shield,
   Wifi,
-  UserCheck
+  UserCheck,
+  ArrowLeft,
+  User,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const PlanTripPage = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Logged out successfully');
+      navigate('/');
+    } catch (error) {
+      toast.error('Logout failed');
+    }
+  };
 
   // Form state
   const [tripData, setTripData] = useState({
@@ -37,10 +51,7 @@ const PlanTripPage = () => {
     endDate: '',
     startPlace: '',
     endPlace: '',
-    stops: [],
-    travelers: 1,
-    budget: '',
-    tripType: 'leisure'
+    stops: []
   });
 
   // UI state
@@ -52,12 +63,25 @@ const PlanTripPage = () => {
   const [selectedPackages, setSelectedPackages] = useState([]);
   const [routeInfo, setRouteInfo] = useState(null);
   const [totalAttractions, setTotalAttractions] = useState(0);
-  const [pricing, setPricing] = useState(null);
   const [tripSummary, setTripSummary] = useState(null);
   const [transportOptions, setTransportOptions] = useState(null);
   const [hotelOptions, setHotelOptions] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [travelTips, setTravelTips] = useState(null);
+  const [showAddItineraryModal, setShowAddItineraryModal] = useState(false);
+  const [isSavingTrip, setIsSavingTrip] = useState(false);
+  const [customTripData, setCustomTripData] = useState({
+    title: '',
+    startDate: '',
+    endDate: '',
+    startPlace: '',
+    endPlace: '',
+    description: '',
+    travelers: 1,
+    budget: 0,
+    tripType: 'leisure'
+  });
+  const [isCreatingCustomTrip, setIsCreatingCustomTrip] = useState(false);
 
   // Autocomplete state
   const [startSuggestions, setStartSuggestions] = useState([]);
@@ -94,8 +118,8 @@ const PlanTripPage = () => {
     const diffTime = Math.abs(endDate - startDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays > 30) {
-      toast.error('Trip duration cannot exceed 30 days');
+    if (diffDays > 6) {
+      toast.error('Trip duration cannot exceed 6 days');
       return false;
     }
 
@@ -128,12 +152,33 @@ const PlanTripPage = () => {
       return false;
     }
 
-    if (tripData.travelers < 1 || tripData.travelers > 10) {
-      toast.error('Number of travelers must be between 1 and 10');
+    // Additional check for 6-day limit
+    const duration = getTripDuration();
+    if (duration && duration > 6) {
+      toast.error('Trip duration cannot exceed 6 days');
       return false;
     }
 
     return true;
+  };
+
+  // Calculate maximum end date (6 days from start date)
+  const getMaxEndDate = () => {
+    if (!tripData.startDate) return '';
+    const startDate = new Date(tripData.startDate);
+    const maxEndDate = new Date(startDate);
+    maxEndDate.setDate(startDate.getDate() + 6);
+    return maxEndDate.toISOString().split('T')[0];
+  };
+
+  // Calculate trip duration
+  const getTripDuration = () => {
+    if (!tripData.startDate || !tripData.endDate) return null;
+    const startDate = new Date(tripData.startDate);
+    const endDate = new Date(tripData.endDate);
+    const diffTime = Math.abs(endDate - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   // Handle form changes
@@ -148,6 +193,22 @@ const PlanTripPage = () => {
       setShowStartSuggestions(false);
     } else if (field === 'endPlace') {
       setShowEndSuggestions(false);
+    }
+
+    // If start date is changed, reset end date if it exceeds the new limit
+    if (field === 'startDate') {
+      const newStartDate = new Date(value);
+      const currentEndDate = new Date(tripData.endDate);
+      const maxEndDate = new Date(newStartDate);
+      maxEndDate.setDate(newStartDate.getDate() + 6);
+
+      if (currentEndDate > maxEndDate) {
+        setTripData(prev => ({
+          ...prev,
+          endDate: ''
+        }));
+        toast.info('End date has been reset. Please select a date within 6 days of the start date.');
+      }
     }
   };
 
@@ -238,7 +299,7 @@ const PlanTripPage = () => {
           origin: tripData.startPlace,
           destination: tripData.endPlace,
           date: tripData.startDate,
-          travelers: tripData.travelers
+          travelers: 1 // Default to 1 traveler
         }
       });
       setTransportOptions(response.data);
@@ -257,8 +318,8 @@ const PlanTripPage = () => {
           location: tripData.startPlace,
           checkIn: tripData.startDate,
           checkOut: tripData.endDate,
-          adults: tripData.travelers,
-          rooms: Math.ceil(tripData.travelers / 2)
+          adults: 1, // Default to 1 traveler
+          rooms: 1 // Default to 1 room
         }
       });
       setHotelOptions(response.data);
@@ -293,8 +354,7 @@ const PlanTripPage = () => {
 
   // Generate itinerary
   const generateItinerary = async () => {
-    if (!tripData.startPlace || !tripData.endPlace || !tripData.startDate || !tripData.endDate) {
-      toast.error('Please fill in all required fields');
+    if (!validateForm()) {
       return;
     }
 
@@ -338,6 +398,122 @@ const PlanTripPage = () => {
     }
   };
 
+  // Save generated itinerary as planned trip
+  const saveItineraryAsTrip = async () => {
+    if (!itinerary || itinerary.length === 0) {
+      toast.error('No itinerary to save. Please generate an itinerary first.');
+      return;
+    }
+
+    setIsSavingTrip(true);
+    try {
+      const tripTitle = `${tripData.startPlace} to ${tripData.endPlace} Trip`;
+
+      const response = await axios.post('/api/profile/save-itinerary', {
+        title: tripTitle,
+        startPlace: tripData.startPlace,
+        endPlace: tripData.endPlace,
+        stops: tripData.stops.filter(stop => stop.trim() !== ''),
+        startDate: tripData.startDate,
+        endDate: tripData.endDate,
+        itinerary: itinerary,
+        travelers: 1,
+        budget: 0,
+        tripType: 'leisure'
+      });
+
+      if (response.data.success) {
+        toast.success('Itinerary saved as planned trip successfully!');
+        // Optionally navigate to profile page to view the saved trip
+        navigate('/profile');
+      }
+    } catch (error) {
+      console.error('Error saving itinerary:', error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Failed to save itinerary. Please try again.');
+      }
+    } finally {
+      setIsSavingTrip(false);
+    }
+  };
+
+  // Add custom itinerary
+  const addCustomItinerary = () => {
+    setShowAddItineraryModal(true);
+  };
+
+  // Handle custom trip data changes
+  const handleCustomTripChange = (field, value) => {
+    setCustomTripData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Create custom trip
+  const createCustomTrip = async () => {
+    // Validate required fields
+    if (!customTripData.title || !customTripData.startDate || !customTripData.endDate ||
+      !customTripData.startPlace || !customTripData.endPlace) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Validate dates
+    const start = new Date(customTripData.startDate);
+    const end = new Date(customTripData.endDate);
+
+    if (start >= end) {
+      toast.error('End date must be after start date');
+      return;
+    }
+
+    setIsCreatingCustomTrip(true);
+    try {
+      const response = await axios.post('/api/profile/trips', {
+        title: customTripData.title,
+        description: customTripData.description,
+        startPlace: customTripData.startPlace,
+        endPlace: customTripData.endPlace,
+        startDate: customTripData.startDate,
+        endDate: customTripData.endDate,
+        travelers: customTripData.travelers,
+        budget: customTripData.budget,
+        tripType: customTripData.tripType
+      });
+
+      if (response.data.success) {
+        toast.success('Custom trip created successfully!');
+        setShowAddItineraryModal(false);
+        // Reset form
+        setCustomTripData({
+          title: '',
+          startDate: '',
+          endDate: '',
+          startPlace: '',
+          endPlace: '',
+          description: '',
+          travelers: 1,
+          budget: 0,
+          tripType: 'leisure'
+        });
+        // Optionally navigate to profile page
+        navigate('/profile');
+      }
+    } catch (error) {
+      console.error('Error creating custom trip:', error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Failed to create custom trip. Please try again.');
+      }
+    } finally {
+      setIsCreatingCustomTrip(false);
+    }
+  };
+
   // Select package
   const selectPackage = (pkg) => {
     setSelectedPackages(prev => [...prev, pkg]);
@@ -357,11 +533,13 @@ const PlanTripPage = () => {
         selectedPackages,
         routeInfo,
         totalAttractions,
-        pricing,
         tripSummary
       }
     });
   };
+
+  // Remove attraction from itinerary
+
 
   // Get transport icon
   const getTransportIcon = (transport) => {
@@ -383,15 +561,7 @@ const PlanTripPage = () => {
     return <Car className="h-4 w-4" />;
   };
 
-  // Format price
-  const formatPrice = (price) => {
-    if (typeof price === 'string') return price;
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0
-    }).format(price);
-  };
+
 
   // Get transport details
   const getTransportDetails = (transport) => {
@@ -440,8 +610,56 @@ const PlanTripPage = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">Plan Your Trip</h1>
-          <p className="text-gray-600">Create the perfect itinerary for your journey</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors duration-200 p-2 rounded-lg hover:bg-gray-100"
+              >
+                <ArrowLeft className="h-5 w-5 mr-2" />
+                Back to Dashboard
+              </button>
+              <button
+                onClick={() => navigate('/calendar')}
+                className="flex items-center text-green-600 hover:text-green-700 transition-colors duration-200 p-2 rounded-lg hover:bg-green-50"
+              >
+                <Calendar className="h-5 w-5 mr-2" />
+                View Calendar
+              </button>
+            </div>
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-gray-900">Plan Your Trip</h1>
+              <p className="text-gray-600">Create the perfect itinerary for your journey</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              {/* Profile Image Button */}
+              <Link
+                to="/profile"
+                className="flex items-center space-x-2 bg-gray-100 rounded-full p-1 hover:bg-gray-200 transition-colors"
+              >
+                {user?.profilePicture ? (
+                  <img
+                    src={user.profilePicture}
+                    alt="Profile"
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                )}
+              </Link>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -450,39 +668,57 @@ const PlanTripPage = () => {
           {/* Trip Planning Form */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Trip Details</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                <Calendar className="h-6 w-6 mr-2 text-blue-600" />
+                Trip Details
+              </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Start Date */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Date
+                    Start Date <span className="text-xs text-gray-500">*</span>
                   </label>
                   <div className="relative">
                     <input
                       type="date"
                       value={tripData.startDate}
                       onChange={(e) => handleInputChange('startDate', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-colors"
                       min={new Date().toISOString().split('T')[0]}
+                      placeholder="Select start date"
                     />
                   </div>
+                  {!tripData.startDate && (
+                    <p className="text-xs text-gray-500 mt-1">Please select a start date to continue</p>
+                  )}
                 </div>
 
                 {/* End Date */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    End Date
+                    End Date <span className="text-xs text-gray-500">* (Max 6 days from start)</span>
                   </label>
                   <div className="relative">
                     <input
                       type="date"
                       value={tripData.endDate}
                       onChange={(e) => handleInputChange('endDate', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${!tripData.startDate
+                        ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                        : 'border-gray-300 hover:border-gray-400'
+                        }`}
                       min={tripData.startDate || new Date().toISOString().split('T')[0]}
+                      max={getMaxEndDate()}
+                      disabled={!tripData.startDate}
+                      placeholder="Select end date"
                     />
                   </div>
+                  {!tripData.startDate ? (
+                    <p className="text-xs text-gray-500 mt-1">Please select a start date first</p>
+                  ) : !tripData.endDate ? (
+                    <p className="text-xs text-gray-500 mt-1">Please select an end date</p>
+                  ) : null}
                 </div>
 
                 {/* Start Place */}
@@ -570,6 +806,52 @@ const PlanTripPage = () => {
                 </div>
               </div>
 
+              {/* Visual Separator */}
+              <div className="my-6 border-t border-gray-200"></div>
+
+              {/* Trip Duration Indicator */}
+              {getTripDuration() !== null && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-100 rounded-full">
+                        <Calendar className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-blue-900">
+                          Trip Duration: {getTripDuration()} day{getTripDuration() !== 1 ? 's' : ''}
+                        </span>
+                        <p className="text-xs text-blue-600 mt-1">
+                          {tripData.startDate && tripData.endDate && (
+                            <>
+                              {new Date(tripData.startDate).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric'
+                              })} - {new Date(tripData.endDate).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    {getTripDuration() === 6 && (
+                      <span className="text-xs text-blue-700 bg-blue-200 px-3 py-1 rounded-full font-medium">
+                        Maximum duration
+                      </span>
+                    )}
+                    {getTripDuration() < 6 && (
+                      <span className="text-xs text-green-700 bg-green-100 px-3 py-1 rounded-full font-medium">
+                        {6 - getTripDuration()} day{6 - getTripDuration() !== 1 ? 's' : ''} remaining
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Stops */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-4">
@@ -628,58 +910,10 @@ const PlanTripPage = () => {
                 ))}
               </div>
 
-              {/* Additional Options */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Travelers
-                  </label>
-                  <select
-                    value={tripData.travelers}
-                    onChange={(e) => handleInputChange('travelers', parseInt(e.target.value))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                      <option key={num} value={num}>{num} {num === 1 ? 'Traveler' : 'Travelers'}</option>
-                    ))}
-                  </select>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Budget Range
-                  </label>
-                  <select
-                    value={tripData.budget}
-                    onChange={(e) => handleInputChange('budget', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Any Budget</option>
-                    <option value="budget">Budget (₹5,000 - ₹15,000)</option>
-                    <option value="comfort">Mid-range (₹15,000 - ₹30,000)</option>
-                    <option value="luxury">Luxury (₹30,000+)</option>
-                  </select>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Trip Type
-                  </label>
-                  <select
-                    value={tripData.tripType}
-                    onChange={(e) => handleInputChange('tripType', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="leisure">Leisure</option>
-                    <option value="business">Business</option>
-                    <option value="adventure">Adventure</option>
-                    <option value="cultural">Cultural</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Search Button */}
-              <div className="mt-8">
+              {/* Action Buttons */}
+              <div className="mt-8 space-y-3">
                 <button
                   onClick={generateItinerary}
                   disabled={isLoading}
@@ -697,6 +931,16 @@ const PlanTripPage = () => {
                     </>
                   )}
                 </button>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={addCustomItinerary}
+                    className="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center"
+                  >
+                    <Plus className="h-5 w-5 mr-2" />
+                    Add Custom Trip
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -810,7 +1054,7 @@ const PlanTripPage = () => {
                                 </span>
                                 <span className="flex items-center">
                                   <Users className="h-4 w-4 mr-1" />
-                                  {tripData.travelers} travelers
+                                  1 traveler
                                 </span>
                                 <span className="flex items-center">
                                   <Star className="h-4 w-4 mr-1 text-yellow-400 fill-current" />
@@ -852,42 +1096,7 @@ const PlanTripPage = () => {
                                 </div>
                               )}
 
-                              {/* Pricing Breakdown */}
-                              {pkg.pricing && (
-                                <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                                  <h4 className="text-sm font-medium text-gray-700 mb-2">Cost Breakdown:</h4>
-                                  <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="flex items-center justify-between">
-                                      <span className="flex items-center">
-                                        <Car className="h-3 w-3 mr-1" />
-                                        Transport:
-                                      </span>
-                                      <span className="font-medium">{formatPrice(pkg.pricing.transport)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="flex items-center">
-                                        <Hotel className="h-3 w-3 mr-1" />
-                                        Accommodation:
-                                      </span>
-                                      <span className="font-medium">{formatPrice(pkg.pricing.accommodation)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="flex items-center">
-                                        <Utensils className="h-3 w-3 mr-1" />
-                                        Food:
-                                      </span>
-                                      <span className="font-medium">{formatPrice(pkg.pricing.food)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="flex items-center">
-                                        <Map className="h-3 w-3 mr-1" />
-                                        Activities:
-                                      </span>
-                                      <span className="font-medium">{formatPrice(pkg.pricing.activities)}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+
 
                               <div className="flex flex-wrap gap-2 mb-3">
                                 {pkg.highlights.map((highlight, index) => (
@@ -955,10 +1164,38 @@ const PlanTripPage = () => {
             {/* Generated Itinerary */}
             {showItinerary && (
               <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <Map className="h-6 w-6 mr-2" />
-                  Your Generated Itinerary
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Map className="h-6 w-6 mr-2" />
+                    Your Generated Itinerary
+                  </h2>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={saveItineraryAsTrip}
+                      disabled={isSavingTrip}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    >
+                      {isSavingTrip ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Save as Planned Trip
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={addCustomItinerary}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Custom Itinerary
+                    </button>
+                  </div>
+                </div>
                 {itinerary && itinerary.length > 0 ? (
                   <div className="space-y-6">
                     {itinerary.map((day, dayIndex) => (
@@ -980,7 +1217,7 @@ const PlanTripPage = () => {
                         </div>
                         <div className="space-y-4">
                           {day.activities.map((activity, activityIndex) => (
-                            <div key={activityIndex} className="flex items-start space-x-4 p-3 bg-gray-50 rounded-lg">
+                            <div key={activityIndex} className="flex items-start space-x-4 p-3 bg-gray-50 rounded-lg relative">
                               {activity.imageUrl && (
                                 <img
                                   src={activity.imageUrl}
@@ -994,12 +1231,14 @@ const PlanTripPage = () => {
                               <div className="flex-1">
                                 <div className="flex items-center justify-between mb-2">
                                   <h4 className="font-medium text-gray-900">{activity.name}</h4>
-                                  {activity.rating && (
-                                    <div className="flex items-center">
-                                      <span className="text-yellow-500">★</span>
-                                      <span className="text-sm text-gray-600 ml-1">{activity.rating}</span>
-                                    </div>
-                                  )}
+                                  <div className="flex items-center space-x-2">
+                                    {activity.rating && (
+                                      <div className="flex items-center">
+                                        <span className="text-yellow-500">★</span>
+                                        <span className="text-sm text-gray-600 ml-1">{activity.rating}</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 {activity.time && (
                                   <p className="text-sm text-gray-600 mb-1">
@@ -1012,7 +1251,7 @@ const PlanTripPage = () => {
                                 )}
                                 {activity.cost && (
                                   <p className="text-sm font-medium text-green-600">
-                                    <DollarSign className="h-3 w-3 inline mr-1" />
+                                    <span className="text-green-600 mr-1">₹</span>
                                     {activity.cost}
                                   </p>
                                 )}
@@ -1064,56 +1303,7 @@ const PlanTripPage = () => {
               </div>
             )}
 
-            {/* Pricing Summary */}
-            {pricing && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <DollarSign className="h-5 w-5 mr-2" />
-                  Pricing Summary
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(pricing).map(([type, costs]) => (
-                    <div key={type} className="border border-gray-200 rounded-lg p-3">
-                      <h4 className="font-medium text-gray-900 capitalize mb-2">{type} Package</h4>
-                      <div className="text-sm space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center">
-                            <Car className="h-3 w-3 mr-1" />
-                            Transport:
-                          </span>
-                          <span className="font-medium">{formatPrice(costs.transport)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center">
-                            <Hotel className="h-3 w-3 mr-1" />
-                            Accommodation:
-                          </span>
-                          <span className="font-medium">{formatPrice(costs.accommodation)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center">
-                            <Utensils className="h-3 w-3 mr-1" />
-                            Food:
-                          </span>
-                          <span className="font-medium">{formatPrice(costs.food)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center">
-                            <Map className="h-3 w-3 mr-1" />
-                            Activities:
-                          </span>
-                          <span className="font-medium">{formatPrice(costs.activities)}</span>
-                        </div>
-                        <div className="flex items-center justify-between font-medium border-t pt-1">
-                          <span>Total:</span>
-                          <span>{formatPrice(costs.total)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
 
             {/* Travel Tips */}
             {travelTips && (
@@ -1177,6 +1367,171 @@ const PlanTripPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Custom Itinerary Modal */}
+      {showAddItineraryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-medium text-gray-900">Add Custom Itinerary</h3>
+              <button
+                onClick={() => setShowAddItineraryModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Trip Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={customTripData.title}
+                  onChange={(e) => handleCustomTripChange('title', e.target.value)}
+                  placeholder="Enter trip title"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={customTripData.startDate}
+                    onChange={(e) => handleCustomTripChange('startDate', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    End Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={customTripData.endDate}
+                    onChange={(e) => handleCustomTripChange('endDate', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Place <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customTripData.startPlace}
+                    onChange={(e) => handleCustomTripChange('startPlace', e.target.value)}
+                    placeholder="e.g., Mumbai, Maharashtra"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    End Place <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customTripData.endPlace}
+                    onChange={(e) => handleCustomTripChange('endPlace', e.target.value)}
+                    placeholder="e.g., Delhi, India"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={customTripData.description}
+                  onChange={(e) => handleCustomTripChange('description', e.target.value)}
+                  placeholder="Enter trip description (optional)"
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Travelers
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={customTripData.travelers}
+                    onChange={(e) => handleCustomTripChange('travelers', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Budget (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={customTripData.budget}
+                    onChange={(e) => handleCustomTripChange('budget', parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Trip Type
+                  </label>
+                  <select
+                    value={customTripData.tripType}
+                    onChange={(e) => handleCustomTripChange('tripType', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="leisure">Leisure</option>
+                    <option value="business">Business</option>
+                    <option value="adventure">Adventure</option>
+                    <option value="cultural">Cultural</option>
+                    <option value="family">Family</option>
+                    <option value="romantic">Romantic</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowAddItineraryModal(false)}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createCustomTrip}
+                disabled={isCreatingCustomTrip}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isCreatingCustomTrip ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Create Trip'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

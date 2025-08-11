@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Globe, User, LogOut, Calendar, MapPin, Star } from 'lucide-react';
+import { Search, Globe, User, LogOut, Calendar, MapPin, Star, Clock, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import tripService from '../services/tripService';
+import { getDestinationImage } from '../utils/destinationImages';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [previousTrips, setPreviousTrips] = useState([]);
+  const [upcomingTrips, setUpcomingTrips] = useState([]);
+  const [ongoingTrips, setOngoingTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -38,23 +43,50 @@ const DashboardPage = () => {
     }
   ];
 
-  const previousTrips = [
-    {
-      name: 'Summer Vacation',
-      image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2073&q=80',
-      date: 'July 2023'
-    },
-    {
-      name: 'Mountain Retreat',
-      image: 'https://images.unsplash.com/photo-1464822759844-d150baec0134?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-      date: 'August 2023'
-    },
-    {
-      name: 'City Exploration',
-      image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-      date: 'September 2023'
-    }
-  ];
+  // Fetch user trips on component mount
+  useEffect(() => {
+    const fetchUserTrips = async () => {
+      try {
+        setLoading(true);
+        const [previous, upcoming, ongoing] = await Promise.all([
+          tripService.getPreviousTrips(6),
+          tripService.getUpcomingTrips(6),
+          tripService.getOngoingTrips(6)
+        ]);
+
+        setPreviousTrips(previous);
+        setUpcomingTrips(upcoming);
+        setOngoingTrips(ongoing);
+      } catch (error) {
+        console.error('Error fetching trips:', error);
+        toast.error('Failed to load trips');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserTrips();
+  }, []);
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  // Get trip display name
+  const getTripDisplayName = (trip) => {
+    if (trip.title) return trip.title;
+    return `${trip.startPlace} to ${trip.endPlace}`;
+  };
+
+  // Handle trip card click
+  const handleTripClick = (tripId) => {
+    navigate(`/trips/${tripId}`);
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -71,6 +103,10 @@ const DashboardPage = () => {
           <nav className="hidden md:flex items-center space-x-8">
             <Link to="/explore" className="text-gray-600 hover:text-gray-900 transition-colors">Explore</Link>
             <Link to="/trips" className="text-gray-600 hover:text-gray-900 transition-colors">Trips</Link>
+            <Link to="/calendar" className="text-gray-600 hover:text-gray-900 transition-colors flex items-center">
+              <Calendar className="h-4 w-4 mr-1" />
+              Calendar
+            </Link>
             <Link to="/inbox" className="text-gray-600 hover:text-gray-900 transition-colors">Inbox</Link>
             <Link to="/profile" className="text-gray-600 hover:text-gray-900 transition-colors">Profile</Link>
           </nav>
@@ -87,49 +123,41 @@ const DashboardPage = () => {
               />
             </div>
 
-            {/* Profile Menu */}
+            {/* Profile Image Button */}
             <div className="relative">
-              <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center space-x-2 bg-gray-100 rounded-full p-2 hover:bg-gray-200 transition-colors"
+              <Link
+                to="/profile"
+                className="flex items-center space-x-2 bg-gray-100 rounded-full p-1 hover:bg-gray-200 transition-colors"
               >
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-              </button>
-
-              {/* Profile Dropdown */}
-              {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">
-                      {user?.firstName} {user?.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
+                {user?.profilePicture ? (
+                  <img
+                    src={user.profilePicture}
+                    alt="Profile"
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
                   </div>
-                  <Link
-                    to="/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    View Profile
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4 inline mr-2" />
-                    Logout
-                  </button>
-                </div>
-              )}
+                )}
+              </Link>
             </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
       <section className="relative h-96 overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage: `url(https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80)`
@@ -137,7 +165,7 @@ const DashboardPage = () => {
         >
           <div className="absolute inset-0 bg-black bg-opacity-30"></div>
         </div>
-        
+
         <div className="relative z-10 flex items-center justify-center h-full px-6">
           <div className="text-center text-white max-w-4xl">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -146,7 +174,7 @@ const DashboardPage = () => {
             <p className="text-xl mb-8 opacity-90">
               Ready to plan your next adventure?
             </p>
-            
+
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto">
               <div className="flex bg-white rounded-lg shadow-lg overflow-hidden">
@@ -171,7 +199,7 @@ const DashboardPage = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Popular Destinations
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {popularDestinations.map((destination, index) => (
               <div
@@ -199,52 +227,175 @@ const DashboardPage = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Previous Trips
           </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {previousTrips.map((trip, index) => (
-              <div
-                key={index}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer group"
-              >
-                <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={trip.image}
-                    alt={trip.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-white font-semibold text-lg mb-1">{trip.name}</h3>
-                    <p className="text-white/80 text-sm flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      {trip.date}
-                    </p>
+
+          {loading ? (
+            <div className="flex justify-center items-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : previousTrips.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {previousTrips.map((trip) => (
+                <div
+                  key={trip._id}
+                  className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer group"
+                  onClick={() => handleTripClick(trip._id)}
+                >
+                  <div className="relative h-48 overflow-hidden">
+                    <img
+                      src={getDestinationImage(trip.endPlace)}
+                      alt={getTripDisplayName(trip)}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                    <div className="absolute top-3 right-3">
+                      <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Completed
+                      </div>
+                    </div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="text-white font-semibold text-lg mb-1">{getTripDisplayName(trip)}</h3>
+                      <p className="text-white/80 text-sm flex items-center mb-1">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        {trip.endPlace}
+                      </p>
+                      <p className="text-white/80 text-sm flex items-center">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        {formatDate(trip.endDate)}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="bg-gray-50 rounded-lg p-8">
+                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="h-8 w-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Previous Trips</h3>
+                <p className="text-gray-600 mb-4">You haven't completed any trips yet. Start planning your first adventure!</p>
+                <button
+                  onClick={() => navigate('/plan-trip')}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Plan Your First Trip
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </section>
+
+        {/* Upcoming Trips Section */}
+        {upcomingTrips.length > 0 && (
+          <section className="mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">
+              Upcoming Trips
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {upcomingTrips.map((trip) => (
+                <div
+                  key={trip._id}
+                  className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer group"
+                  onClick={() => handleTripClick(trip._id)}
+                >
+                  <div className="relative h-48 overflow-hidden">
+                    <img
+                      src={getDestinationImage(trip.endPlace)}
+                      alt={getTripDisplayName(trip)}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                    <div className="absolute top-3 right-3">
+                      <div className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Planned
+                      </div>
+                    </div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="text-white font-semibold text-lg mb-1">{getTripDisplayName(trip)}</h3>
+                      <p className="text-white/80 text-sm flex items-center mb-1">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        {trip.endPlace}
+                      </p>
+                      <p className="text-white/80 text-sm flex items-center">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        {formatDate(trip.startDate)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Ongoing Trips Section */}
+        {ongoingTrips.length > 0 && (
+          <section className="mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">
+              Ongoing Trips
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {ongoingTrips.map((trip) => (
+                <div
+                  key={trip._id}
+                  className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer group"
+                  onClick={() => handleTripClick(trip._id)}
+                >
+                  <div className="relative h-48 overflow-hidden">
+                    <img
+                      src={getDestinationImage(trip.endPlace)}
+                      alt={getTripDisplayName(trip)}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                    <div className="absolute top-3 right-3">
+                      <div className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Ongoing
+                      </div>
+                    </div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="text-white font-semibold text-lg mb-1">{getTripDisplayName(trip)}</h3>
+                      <p className="text-white/80 text-sm flex items-center mb-1">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        {trip.endPlace}
+                      </p>
+                      <p className="text-white/80 text-sm flex items-center">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        Until {formatDate(trip.endDate)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Plan a Trip CTA */}
         <section className="text-center">
-          <button 
-            onClick={() => navigate('/plan-trip')}
-            className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg inline-flex items-center"
-          >
-            <MapPin className="mr-2 h-5 w-5" />
-            Plan a trip
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+            <button
+              onClick={() => navigate('/plan-trip')}
+              className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg inline-flex items-center"
+            >
+              <MapPin className="mr-2 h-5 w-5" />
+              Plan a trip
+            </button>
+            <button
+              onClick={() => navigate('/calendar')}
+              className="bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg inline-flex items-center"
+            >
+              <Calendar className="mr-2 h-5 w-5" />
+              View Calendar
+            </button>
+          </div>
         </section>
       </div>
 
-      {/* Click outside to close profile menu */}
-      {showProfileMenu && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setShowProfileMenu(false)}
-        />
-      )}
     </div>
   );
 };

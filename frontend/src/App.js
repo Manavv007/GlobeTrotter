@@ -10,6 +10,9 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import PlanTripPage from './pages/PlanTripPage';
+import ProfilePage from './pages/ProfilePage';
+import TripDetailsPage from './pages/TripDetailsPage';
+import TripCalendarPage from './pages/TripCalendarPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -62,6 +65,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <PlanTripPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trips/:tripId"
+              element={
+                <ProtectedRoute>
+                  <TripDetailsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute>
+                  <TripCalendarPage />
                 </ProtectedRoute>
               }
             />
