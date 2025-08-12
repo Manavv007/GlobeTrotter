@@ -63,6 +63,36 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date
   },
+  // Multiple active sessions support
+  activeSessions: {
+    type: [{
+      sessionId: {
+        type: String,
+        required: true
+      },
+      token: {
+        type: String,
+        required: true
+      },
+      deviceInfo: {
+        type: String,
+        default: 'Unknown'
+      },
+      ipAddress: {
+        type: String,
+        default: 'Unknown'
+      },
+      lastActivity: {
+        type: Date,
+        default: Date.now
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    default: []
+  },
   preferences: {
     theme: {
       type: String,
@@ -115,6 +145,18 @@ userSchema.methods.getProfile = function() {
   delete user.emailVerificationExpires;
   delete user.resetPasswordToken;
   delete user.resetPasswordExpires;
+  
+  // Ensure activeSessions is included but limit sensitive data
+  if (user.activeSessions) {
+    user.activeSessions = user.activeSessions.map(session => ({
+      sessionId: session.sessionId,
+      deviceInfo: session.deviceInfo,
+      ipAddress: session.ipAddress,
+      lastActivity: session.lastActivity,
+      createdAt: session.createdAt
+    }));
+  }
+  
   return user;
 };
 
@@ -134,6 +176,73 @@ userSchema.methods.generatePasswordResetToken = function() {
   this.resetPasswordToken = token;
   this.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
   return token;
+};
+
+// Method to add a new active session
+userSchema.methods.addSession = function(sessionId, token, deviceInfo = 'Unknown', ipAddress = 'Unknown') {
+  // Initialize activeSessions if it doesn't exist
+  if (!this.activeSessions) {
+    this.activeSessions = [];
+  }
+  
+  // Remove old sessions if too many (keep max 10 sessions)
+  if (this.activeSessions.length >= 10) {
+    this.activeSessions.shift(); // Remove oldest session
+  }
+  
+  this.activeSessions.push({
+    sessionId,
+    token,
+    deviceInfo,
+    ipAddress,
+    lastActivity: new Date(),
+    createdAt: new Date()
+  });
+  
+  return this;
+};
+
+// Method to remove a specific session
+userSchema.methods.removeSession = function(sessionId) {
+  if (!this.activeSessions) {
+    this.activeSessions = [];
+    return this;
+  }
+  
+  this.activeSessions = this.activeSessions.filter(session => session.sessionId !== sessionId);
+  return this;
+};
+
+// Method to update session activity
+userSchema.methods.updateSessionActivity = function(sessionId) {
+  if (!this.activeSessions) {
+    this.activeSessions = [];
+    return this;
+  }
+  
+  const session = this.activeSessions.find(s => s.sessionId === sessionId);
+  if (session) {
+    session.lastActivity = new Date();
+  }
+  return this;
+};
+
+// Method to check if session exists
+userSchema.methods.hasSession = function(sessionId) {
+  if (!this.activeSessions) {
+    return false;
+  }
+  
+  return this.activeSessions.some(session => session.sessionId === sessionId);
+};
+
+// Method to get active sessions count
+userSchema.methods.getActiveSessionsCount = function() {
+  if (!this.activeSessions) {
+    return 0;
+  }
+  
+  return this.activeSessions.length;
 };
 
 module.exports = mongoose.model('User', userSchema);

@@ -11,6 +11,12 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
+// Generate unique session ID
+const generateSessionId = () => {
+  const crypto = require('crypto');
+  return crypto.randomBytes(32).toString('hex');
+};
+
 // Register User
 router.post('/register', [
   body('firstName').trim().isLength({ min: 2, max: 50 }).withMessage('First name must be between 2 and 50 characters'),
@@ -125,15 +131,32 @@ router.post('/login', [
 
     // Update last login
     user.lastLogin = new Date();
-    await user.save();
-
-    // Generate token
+    
+    // Generate unique session ID and token
+    const sessionId = generateSessionId();
     const token = generateToken(user._id);
+    
+    try {
+      // Add new session to user
+      user.addSession(
+        sessionId, 
+        token, 
+        req.headers['user-agent'] || 'Unknown',
+        req.ip || req.connection.remoteAddress || 'Unknown'
+      );
+      
+      await user.save();
+      console.log(`✅ User ${user.email} logged in successfully with session ${sessionId.substring(0, 8)}...`);
+    } catch (sessionError) {
+      console.error('Session creation error:', sessionError);
+      // Continue with login even if session creation fails
+    }
 
     res.json({
       success: true,
       message: 'Login successful',
       token,
+      sessionId,
       user: user.getProfile()
     });
 
@@ -142,6 +165,95 @@ router.post('/login', [
     res.status(500).json({
       success: false,
       message: 'Error logging in. Please try again.'
+    });
+  }
+});
+
+// Logout User (remove specific session)
+router.post('/logout', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session ID is required'
+      });
+    }
+
+    // Find user by session ID
+    const user = await User.findOne({
+      'activeSessions.sessionId': sessionId
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    // Remove the specific session
+    user.removeSession(sessionId);
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Logout successful'
+    });
+
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error logging out. Please try again.'
+    });
+  }
+});
+
+// Get user's active sessions
+router.get('/sessions', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access token required'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Return active sessions (without sensitive data)
+    const sessions = user.activeSessions.map(session => ({
+      sessionId: session.sessionId,
+      deviceInfo: session.deviceInfo,
+      ipAddress: session.ipAddress,
+      lastActivity: session.lastActivity,
+      createdAt: session.createdAt
+    }));
+
+    res.json({
+      success: true,
+      sessions,
+      totalSessions: sessions.length
+    });
+
+  } catch (error) {
+    console.error('Get sessions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving sessions'
     });
   }
 });

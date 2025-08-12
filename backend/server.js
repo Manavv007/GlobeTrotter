@@ -10,10 +10,12 @@ const userRoutes = require('./routes/user');
 const tripRoutes = require('./routes/trips');
 const itineraryRoutes = require('./routes/generateItinerary');
 const profileRoutes = require('./routes/profile');
+const communityRoutes = require('./routes/community');
 const TripStatusUpdater = require('./utils/tripStatusUpdater');
+const { cleanupExpiredSessions } = require('./utils/sessionCleanup');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000; // Back to 5000
 
 // Trust proxy for rate limiting
 app.set('trust proxy', 1);
@@ -21,14 +23,41 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
-app.use(limiter);
+// Rate limiting - can be disabled in development for testing
+if (process.env.NODE_ENV === 'development' && process.env.DISABLE_RATE_LIMIT === 'true') {
+  console.log('⚠️  Rate limiting disabled for development');
+} else {
+  // Rate limiting
+  const limiter = rateLimit({
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes default
+    max: process.env.NODE_ENV === 'production' ? 100 : (parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500),
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    message: {
+      status: 'error',
+      message: 'Too many requests from this IP, please try again later.',
+      retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
+    }
+  });
+
+  // Stricter rate limiting for auth routes
+  const authLimiter = rateLimit({
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+    max: process.env.NODE_ENV === 'production' ? 20 : (parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS) || 50),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      status: 'error',
+      message: 'Too many authentication attempts from this IP, please try again later.',
+      retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
+    }
+  });
+
+  app.use(limiter);
+
+  // Apply stricter rate limiting to auth routes
+  app.use('/api/auth', authLimiter);
+}
 
 // Middleware
 app.use(cors({
@@ -46,6 +75,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/itinerary', itineraryRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/community', communityRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -69,6 +99,15 @@ mongoose.connect(process.env.MONGODB_URI)
       }
     }, 60 * 60 * 1000); // Run every hour
 
+    // Schedule session cleanup (run every 6 hours)
+    setInterval(async () => {
+      try {
+        await cleanupExpiredSessions();
+      } catch (error) {
+        console.error('Scheduled session cleanup failed:', error);
+      }
+    }, 6 * 60 * 60 * 1000); // Run every 6 hours
+
     // Run initial trip status update
     TripStatusUpdater.updateTripStatuses()
       .then(result => {
@@ -78,6 +117,17 @@ mongoose.connect(process.env.MONGODB_URI)
       })
       .catch(error => {
         console.error('Initial trip status update failed:', error);
+      });
+
+    // Run initial session cleanup
+    cleanupExpiredSessions()
+      .then(result => {
+        if (result.success) {
+          console.log(`Initial session cleanup: ${result.cleanedUsers} users cleaned`);
+        }
+      })
+      .catch(error => {
+        console.error('Initial session cleanup failed:', error);
       });
   })
   .catch((error) => {
