@@ -31,22 +31,26 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       if (token) {
         try {
-          const response = await axios.get('/api/user/profile');
+          const response = await axios.get('http://localhost:5001/api/auth/verify-token');
           setUser(response.data.user);
         } catch (error) {
           console.error('Auth check failed:', error);
-          logout();
+          // Clear invalid token
+          setUser(null);
+          setToken(null);
+          localStorage.removeItem('token');
+          delete axios.defaults.headers.common['Authorization'];
         }
       }
       setLoading(false);
     };
 
     checkAuth();
-  }, [token]);
+  }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+      const response = await axios.post('http://localhost:5001/api/auth/login', { email, password });
       const { token: newToken, user: userData } = response.data;
 
       setToken(newToken);
@@ -169,3 +173,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+export { AuthContext };

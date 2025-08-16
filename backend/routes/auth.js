@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const EmailService = require('../utils/emailService');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -477,6 +478,40 @@ router.post('/resend-verification', [
     res.status(500).json({
       success: false,
       message: 'Error sending verification email. Please try again.'
+    });
+  }
+});
+
+// Verify token endpoint
+router.get('/verify-token', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        isEmailVerified: user.isEmailVerified,
+        profilePicture: user.profilePicture,
+        preferences: user.preferences
+      }
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token'
     });
   }
 });

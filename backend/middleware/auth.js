@@ -53,7 +53,10 @@ const authenticateToken = async (req, res, next) => {
       await user.save();
     }
 
-    req.user = user;
+    req.user = {
+      ...user.toObject(),
+      userId: user._id.toString()
+    };
     req.token = token;
     next();
   } catch (error) {

@@ -3,19 +3,24 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 require('dotenv').config({ path: './config.env' });
 
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/user');
-const tripRoutes = require('./routes/trips');
+const tripsRoutes = require('./routes/trips');
 const itineraryRoutes = require('./routes/generateItinerary');
-const profileRoutes = require('./routes/profile');
 const communityRoutes = require('./routes/community');
+const packagesRoutes = require('./routes/packages');
+const calendarRoutes = require('./routes/calendar');
+const postsRoutes = require('./routes/posts');
+const commentsRoutes = require('./routes/comments');
+const placesDiscoveryRoutes = require('./routes/placesDiscovery');
+const uploadRoutes = require('./routes/upload');
 const TripStatusUpdater = require('./utils/tripStatusUpdater');
 const { cleanupExpiredSessions } = require('./utils/sessionCleanup');
 
 const app = express();
-const PORT = process.env.PORT || 5000; // Back to 5000
+const PORT = process.env.PORT || 5001; // Use 5001 to avoid conflicts
 
 // Trust proxy for rate limiting
 app.set('trust proxy', 1);
@@ -69,13 +74,20 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded images statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/trips', tripRoutes);
+app.use('/api/trips', tripsRoutes);
 app.use('/api/itinerary', itineraryRoutes);
-app.use('/api/profile', profileRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/packages', packagesRoutes);
+app.use('/api/calendar', calendarRoutes);
+app.use('/api/posts', postsRoutes);
+app.use('/api/comments', commentsRoutes);
+app.use('/api/places-discovery', placesDiscoveryRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

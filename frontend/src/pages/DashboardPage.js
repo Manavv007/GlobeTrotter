@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Globe, User, LogOut, Calendar, MapPin, Star, Clock, CheckCircle } from 'lucide-react';
+import { Search, Globe, User, LogOut, Calendar, MapPin, Star, Clock, CheckCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { showError } from '../utils/toast';
 import tripService from '../services/tripService';
@@ -13,6 +13,9 @@ const DashboardPage = () => {
   const [upcomingTrips, setUpcomingTrips] = useState([]);
   const [ongoingTrips, setOngoingTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -23,22 +26,75 @@ const DashboardPage = () => {
     }
   };
 
+  // Fetch city suggestions
+  const fetchSuggestions = async (query) => {
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5001/api/trips/search-places?query=${encodeURIComponent(query)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.places || []);
+        setShowSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    }
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    fetchSuggestions(value);
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion) => {
+    setSearchQuery(suggestion.description);
+    setShowSuggestions(false);
+  };
+
+  // Handle search submit
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim()) {
+      navigate(`/plan-trip?destination=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  // Handle enter key press
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearchSubmit();
+    }
+  };
+
   const popularDestinations = [
     {
-      name: 'Paris',
-      image: 'https://images.unsplash.com/photo-1502602898536-47ad22581b52?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2064&q=80'
+      name: 'Kerala',
+      image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80'
     },
     {
-      name: 'Rome',
-      image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2096&q=80'
+      name: 'Goa',
+      image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2074&q=80'
     },
     {
-      name: 'Barcelona',
-      image: 'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80'
+      name: 'Manali',
+      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80'
     },
     {
-      name: 'London',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80'
+      name: 'Assam',
+      image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80'
     }
   ];
 
@@ -87,6 +143,11 @@ const DashboardPage = () => {
     navigate(`/trips/${tripId}`);
   };
 
+  // Handle popular destination card click
+  const handleDestinationClick = (destinationName) => {
+    navigate(`/plan-trip?destination=${encodeURIComponent(destinationName)}`);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -104,21 +165,12 @@ const DashboardPage = () => {
               <Calendar className="h-4 w-4 mr-1" />
               Calendar
             </Link>
+            <Link to="/community" className="text-gray-600 hover:text-gray-900 transition-colors">Community</Link>
             <Link to="/profile" className="text-gray-600 hover:text-gray-900 transition-colors">Profile</Link>
           </nav>
 
-          {/* Right side - Search and Profile */}
+          {/* Right side - Profile */}
           <div className="flex items-center space-x-4">
-            {/* Search Bar */}
-            <div className="hidden md:flex items-center bg-gray-100 rounded-lg px-3 py-2">
-              <Search className="h-4 w-4 text-gray-400 mr-2" />
-              <input
-                type="text"
-                placeholder="Search"
-                className="bg-transparent outline-none text-sm w-32"
-              />
-            </div>
-
             {/* Profile Image Button */}
             <div className="relative">
               <Link
@@ -172,17 +224,54 @@ const DashboardPage = () => {
             </p>
 
             {/* Search Bar */}
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-2xl mx-auto relative">
               <div className="flex bg-white rounded-lg shadow-lg overflow-hidden">
                 <div className="flex-1 flex items-center px-4">
                   <Search className="h-5 w-5 text-gray-400 mr-3" />
                   <input
                     type="text"
                     placeholder="Where"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onKeyPress={handleKeyPress}
+                    onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 300)}
                     className="flex-1 py-3 text-gray-900 placeholder-gray-500 focus:outline-none"
                   />
                 </div>
+                <button
+                  onClick={handleSearchSubmit}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 transition-colors duration-200 flex items-center"
+                >
+                  <ArrowRight className="h-5 w-5" />
+                </button>
               </div>
+              
+              {/* Suggestions Dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto z-50">
+                  {suggestions.map((suggestion, index) => (
+                    <div
+                      key={suggestion.place_id || index}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSuggestionSelect(suggestion);
+                      }}
+                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 text-gray-400 mr-3 flex-shrink-0" />
+                        <div>
+                          <div className="font-medium text-gray-900">{suggestion.main_text}</div>
+                          {suggestion.secondary_text && (
+                            <div className="text-sm text-gray-500">{suggestion.secondary_text}</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -200,6 +289,7 @@ const DashboardPage = () => {
             {popularDestinations.map((destination, index) => (
               <div
                 key={index}
+                onClick={() => handleDestinationClick(destination.name)}
                 className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer group"
               >
                 <div className="relative h-48 overflow-hidden">
@@ -207,6 +297,10 @@ const DashboardPage = () => {
                     src={destination.image}
                     alt={destination.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/400x300/6366f1/ffffff?text=' + encodeURIComponent(destination.name);
+                    }}
+                    loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                   <div className="absolute bottom-4 left-4 right-4">

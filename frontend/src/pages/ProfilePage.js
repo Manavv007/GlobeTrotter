@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import {
@@ -65,6 +65,36 @@ const ProfilePage = () => {
     newPassword: '',
     confirmPassword: ''
   });
+  const [showActions, setShowActions] = useState({});
+
+  // Helper functions
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'planned': return 'bg-blue-100 text-blue-800';
+      case 'ongoing': return 'bg-green-100 text-green-800';
+      case 'completed': return 'bg-gray-100 text-gray-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'planned': return <Clock className="h-4 w-4" />;
+      case 'ongoing': return <AlertCircle className="h-4 w-4" />;
+      case 'completed': return <CheckCircle className="h-4 w-4" />;
+      case 'cancelled': return <X className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
+  };
 
   // Fetch profile data and trips
   useEffect(() => {
@@ -248,37 +278,55 @@ const ProfilePage = () => {
     }
   };
 
-
-
-  // Format date
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  // Get status badge color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'planned': return 'bg-blue-100 text-blue-800';
-      case 'ongoing': return 'bg-green-100 text-green-800';
-      case 'completed': return 'bg-gray-100 text-gray-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Get status icon
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'planned': return <Clock className="h-4 w-4" />;
-      case 'ongoing': return <AlertCircle className="h-4 w-4" />;
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      case 'cancelled': return <X className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
-    }
+  // TripCard component
+  const TripCard = ({ trip, onStatusUpdate, onDelete }) => {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border p-6 relative">
+        <Link to={`/trips/${trip._id}`} className="block">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{trip.title}</h3>
+          <div className="flex items-center text-sm text-gray-500 mb-2">
+            <Calendar className="h-4 w-4 mr-1" />
+            <span>{formatDate(trip.startDate)} - {formatDate(trip.endDate)}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-500 mb-4">
+            <MapPin className="h-4 w-4 mr-1" />
+            <span>{trip.startPlace} to {trip.endPlace}</span>
+          </div>
+          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(trip.status)}`}>
+            {getStatusIcon(trip.status)}
+            <span className="ml-1 capitalize">{trip.status}</span>
+          </div>
+        </Link>
+        <div className="absolute top-2 right-2">
+          <button
+            onClick={() => setShowActions({ ...showActions, [trip._id]: !showActions[trip._id] })}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            {showActions[trip._id] ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Eye className="h-5 w-5" />
+            )}
+          </button>
+        </div>
+        {showActions[trip._id] && (
+          <div className="absolute top-10 right-2 bg-white shadow-md rounded-md p-2">
+            <button
+              onClick={() => onStatusUpdate(trip._id, 'completed')}
+              className="block w-full text-left px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 rounded"
+            >
+              Mark as Completed
+            </button>
+            <button
+              onClick={() => onDelete(trip._id)}
+              className="block w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-gray-100 rounded"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -673,117 +721,6 @@ const ProfilePage = () => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-// Trip Card Component
-const TripCard = ({ trip, onStatusUpdate, onDelete }) => {
-  const [showActions, setShowActions] = useState(false);
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'planned': return 'bg-blue-100 text-blue-800';
-      case 'ongoing': return 'bg-green-100 text-green-800';
-      case 'completed': return 'bg-gray-100 text-gray-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'planned': return <Clock className="h-4 w-4" />;
-      case 'ongoing': return <AlertCircle className="h-4 w-4" />;
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      case 'cancelled': return <X className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
-    }
-  };
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">{trip.title}</h3>
-        <div className="relative">
-          <button
-            onClick={() => setShowActions(!showActions)}
-            className="p-1 text-gray-400 hover:text-gray-600"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-          {showActions && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
-              {trip.status === 'planned' && (
-                <button
-                  onClick={() => {
-                    onStatusUpdate(trip._id, 'ongoing');
-                    setShowActions(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Mark as Ongoing
-                </button>
-              )}
-              {trip.status === 'ongoing' && (
-                <button
-                  onClick={() => {
-                    onStatusUpdate(trip._id, 'completed');
-                    setShowActions(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Mark as Completed
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  onDelete(trip._id);
-                  setShowActions(false);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-              >
-                Delete Trip
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center text-sm text-gray-600">
-          <MapPin className="h-4 w-4 mr-2" />
-          <span>{trip.startPlace} → {trip.endPlace}</span>
-        </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Calendar className="h-4 w-4 mr-2" />
-          <span>{formatDate(trip.startDate)} - {formatDate(trip.endDate)}</span>
-        </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Users className="h-4 w-4 mr-2" />
-          <span>{trip.travelers} traveler{trip.travelers > 1 ? 's' : ''}</span>
-        </div>
-        {trip.budget > 0 && (
-          <div className="flex items-center text-sm text-gray-600">
-            <DollarSign className="h-4 w-4 mr-2" />
-            <span>Budget: ₹{trip.budget.toLocaleString()}</span>
-          </div>
-        )}
-        <div className="flex items-center">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(trip.status)}`}>
-            {getStatusIcon(trip.status)}
-            <span className="ml-1 capitalize">{trip.status}</span>
-          </span>
-        </div>
-      </div>
     </div>
   );
 };

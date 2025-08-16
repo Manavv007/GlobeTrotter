@@ -44,6 +44,18 @@ const PlanTripPage = () => {
     }
   };
 
+  // Check for pre-filled destination from URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const destination = urlParams.get('destination');
+    if (destination) {
+      setTripData(prev => ({
+        ...prev,
+        endPlace: destination
+      }));
+    }
+  }, []);
+
   // Form state
   const [tripData, setTripData] = useState({
     startDate: '',
@@ -1354,7 +1366,10 @@ const PlanTripPage = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Trending Packages</h3>
               <div className="space-y-4">
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+                <div 
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => navigate('/golden-trail-adventure')}
+                >
                   <img
                     src="https://images.unsplash.com/photo-1564507592333-c60657eea523?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2071&q=80"
                     alt="Golden Triangle"

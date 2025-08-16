@@ -264,15 +264,28 @@ const TripDetailsPage = () => {
                 <div className="space-y-4">
                   {trip.itinerary.map((day, index) => (
                     <div key={index} className="border-l-4 border-blue-500 pl-4">
-                      <h4 className="font-semibold text-gray-900 mb-2">Day {index + 1}</h4>
+                      <h4 className="font-semibold text-gray-900 mb-2">
+                        Day {day.day || index + 1}
+                        {day.location && <span className="text-gray-600 font-normal"> - {day.location}</span>}
+                      </h4>
                       {Array.isArray(day) ? (
                         <ul className="space-y-1">
                           {day.map((activity, activityIndex) => (
                             <li key={activityIndex} className="text-gray-600">• {activity}</li>
                           ))}
                         </ul>
-                      ) : (
+                      ) : day.activities && Array.isArray(day.activities) ? (
+                        <ul className="space-y-1">
+                          {day.activities.map((activity, activityIndex) => (
+                            <li key={activityIndex} className="text-gray-600">
+                              • {typeof activity === 'string' ? activity : activity.name || 'Activity'}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : typeof day === 'string' ? (
                         <p className="text-gray-600">{day}</p>
+                      ) : (
+                        <p className="text-gray-600">No activities planned for this day</p>
                       )}
                     </div>
                   ))}
@@ -283,7 +296,7 @@ const TripDetailsPage = () => {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6">
+            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6 mb-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Trip Summary</h3>
 
               <div className="space-y-4">
@@ -328,6 +341,58 @@ const TripDetailsPage = () => {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Golden Trail Adventure Package */}
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg shadow-sm p-6 border border-amber-200">
+              <div className="flex items-center mb-3">
+                <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center mr-3">
+                  <Star className="h-4 w-4 text-white fill-current" />
+                </div>
+                <h3 className="text-lg font-bold text-amber-900">Featured Package</h3>
+              </div>
+              
+              <div className="mb-4">
+                <h4 className="font-semibold text-amber-800 mb-2">Golden Trail Adventure</h4>
+                <p className="text-sm text-amber-700 mb-3">
+                  Explore India's Golden Triangle in 7 magnificent days
+                </p>
+                
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center text-sm text-amber-700">
+                    <MapPin className="h-3 w-3 mr-2" />
+                    <span>Delhi → Agra → Jaipur</span>
+                  </div>
+                  <div className="flex items-center text-sm text-amber-700">
+                    <Calendar className="h-3 w-3 mr-2" />
+                    <span>7 Days / 6 Nights</span>
+                  </div>
+                  <div className="flex items-center text-sm text-amber-700">
+                    <DollarSign className="h-3 w-3 mr-2" />
+                    <span>Starting from ₹25,999</span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-3 w-3 text-amber-400 fill-current" />
+                    ))}
+                    <span className="ml-1 text-xs text-amber-700">(4.8)</span>
+                  </div>
+                  <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full">
+                    Popular Choice
+                  </span>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => navigate('/golden-trail-adventure')}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center"
+              >
+                View Full Itinerary
+                <ArrowLeft className="h-4 w-4 ml-2 rotate-180" />
+              </button>
             </div>
           </div>
         </div>

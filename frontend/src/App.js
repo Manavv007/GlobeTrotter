@@ -13,6 +13,8 @@ import PlanTripPage from './pages/PlanTripPage';
 import ProfilePage from './pages/ProfilePage';
 import TripDetailsPage from './pages/TripDetailsPage';
 import TripCalendarPage from './pages/TripCalendarPage';
+import GoldenTrailAdventure from './pages/GoldenTrailAdventure';
+import CommunityPage from './pages/CommunityPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -89,14 +91,9 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/calendar"
-              element={
-                <ProtectedRoute>
-                  <TripCalendarPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/calendar" element={<ProtectedRoute><TripCalendarPage /></ProtectedRoute>} />
+            <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
+            <Route path="/golden-trail-adventure" element={<ProtectedRoute><GoldenTrailAdventure /></ProtectedRoute>} />
           </Routes>
         </div>
       </Router>
