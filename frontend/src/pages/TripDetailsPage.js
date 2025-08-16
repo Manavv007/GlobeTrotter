@@ -4,7 +4,7 @@ import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Edi
 import { useAuth } from '../contexts/AuthContext';
 import tripService from '../services/tripService';
 import { getDestinationImage } from '../utils/destinationImages';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../utils/toast';
 
 const TripDetailsPage = () => {
   const { tripId } = useParams();
@@ -21,7 +21,7 @@ const TripDetailsPage = () => {
         setTrip(response.trip);
       } catch (error) {
         console.error('Error fetching trip details:', error);
-        toast.error('Failed to load trip details');
+        showError('Failed to load trip details');
         navigate('/dashboard');
       } finally {
         setLoading(false);
@@ -77,11 +77,11 @@ const TripDetailsPage = () => {
     if (window.confirm('Are you sure you want to delete this trip?')) {
       try {
         await tripService.deleteTrip(tripId);
-        toast.success('Trip deleted successfully');
+        showSuccess('Trip deleted successfully');
         navigate('/dashboard');
       } catch (error) {
         console.error('Error deleting trip:', error);
-        toast.error('Failed to delete trip');
+        showError('Failed to delete trip');
       }
     }
   };

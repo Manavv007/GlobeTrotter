@@ -43,6 +43,11 @@ function App() {
                 },
               },
             }}
+            gutter={8}
+            containerStyle={{
+              top: 20,
+              right: 20,
+            }}
           />
           <Routes>
             <Route path="/" element={<LandingPage />} />

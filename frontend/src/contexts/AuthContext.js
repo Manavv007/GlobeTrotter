@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../utils/toast';
 
 const AuthContext = createContext();
 
@@ -48,16 +48,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post('/api/auth/login', { email, password });
       const { token: newToken, user: userData } = response.data;
-      
+
       setToken(newToken);
       setUser(userData);
       localStorage.setItem('token', newToken);
-      
-      toast.success('Login successful!');
+
+      showSuccess('Login successful!');
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';
-      toast.error(message);
+      showError(message);
       return { success: false, message };
     }
   };
@@ -65,11 +65,11 @@ export const AuthProvider = ({ children }) => {
   const signup = async (userData) => {
     try {
       const response = await axios.post('/api/auth/register', userData);
-      toast.success(response.data.message);
+      showSuccess(response.data.message);
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
-      toast.error(message);
+      showError(message);
       return { success: false, message };
     }
   };
@@ -79,18 +79,18 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
-    toast.success('Logged out successfully');
+    showSuccess('Logged out successfully');
   };
 
   const updateProfile = async (profileData) => {
     try {
       const response = await axios.put('/api/user/profile', profileData);
       setUser(response.data.user);
-      toast.success('Profile updated successfully');
+      showSuccess('Profile updated successfully');
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Profile update failed';
-      toast.error(message);
+      showError(message);
       return { success: false, message };
     }
   };
@@ -102,11 +102,11 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (currentPassword, newPassword) => {
     try {
       await axios.put('/api/user/change-password', { currentPassword, newPassword });
-      toast.success('Password changed successfully');
+      showSuccess('Password changed successfully');
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Password change failed';
-      toast.error(message);
+      showError(message);
       return { success: false, message };
     }
   };
@@ -114,11 +114,11 @@ export const AuthProvider = ({ children }) => {
   const forgotPassword = async (email) => {
     try {
       const response = await axios.post('/api/auth/forgot-password', { email });
-      toast.success(response.data.message);
+      showSuccess(response.data.message);
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Password reset request failed';
-      toast.error(message);
+      showError(message);
       return { success: false, message };
     }
   };
@@ -126,11 +126,11 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (token, password) => {
     try {
       const response = await axios.post('/api/auth/reset-password', { token, password });
-      toast.success(response.data.message);
+      showSuccess(response.data.message);
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Password reset failed';
-      toast.error(message);
+      showError(message);
       return { success: false, message };
     }
   };
@@ -138,11 +138,11 @@ export const AuthProvider = ({ children }) => {
   const resendVerification = async (email) => {
     try {
       const response = await axios.post('/api/auth/resend-verification', { email });
-      toast.success(response.data.message);
+      showSuccess(response.data.message);
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Failed to resend verification email';
-      toast.error(message);
+      showError(message);
       return { success: false, message };
     }
   };

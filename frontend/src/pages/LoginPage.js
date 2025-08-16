@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, Globe } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import { showError } from '../utils/toast';
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,10 +21,9 @@ const LoginPage = () => {
     setIsLoading(true);
     try {
       await login(data.email, data.password);
-      toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.message || 'Login failed');
+      showError(error.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -41,7 +40,7 @@ const LoginPage = () => {
               <Globe className="h-6 w-6 mr-2" />
               <span className="text-xl font-bold">GlobeTrotter</span>
             </Link>
-            
+
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Welcome back
             </h2>
@@ -121,7 +120,7 @@ const LoginPage = () => {
                 Sign up
               </Link>
             </p>
-            
+
             <Link
               to="/forgot-password"
               className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
@@ -146,7 +145,7 @@ const LoginPage = () => {
               <div className="absolute top-32 right-32 w-28 h-14 bg-white rounded-full opacity-80"></div>
               <div className="absolute top-20 right-16 w-20 h-10 bg-white rounded-full opacity-80"></div>
             </div>
-            
+
             {/* Ocean */}
             <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-cyan-400 to-cyan-300">
               {/* Sailboat */}
@@ -156,10 +155,10 @@ const LoginPage = () => {
                 <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-800"></div>
               </div>
             </div>
-            
+
             {/* Beach */}
             <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-yellow-200 to-yellow-100"></div>
-            
+
             {/* Person on Beach Buggy */}
             <div className="absolute bottom-1/4 left-1/3">
               {/* Beach Buggy */}
@@ -169,7 +168,7 @@ const LoginPage = () => {
                 <div className="absolute bottom-1 left-2 w-4 h-4 bg-gray-800 rounded-full"></div>
                 <div className="absolute bottom-1 right-2 w-4 h-4 bg-gray-800 rounded-full"></div>
               </div>
-              
+
               {/* Person */}
               <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
                 {/* Head */}

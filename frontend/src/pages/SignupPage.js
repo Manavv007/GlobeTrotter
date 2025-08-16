@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, User, Mail, Globe } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import { showError } from '../utils/toast';
 
 const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,7 +23,7 @@ const SignupPage = () => {
 
   const onSubmit = async (data) => {
     if (data.password !== data.confirmPassword) {
-      toast.error('Passwords do not match');
+      showError('Passwords do not match');
       return;
     }
 
@@ -37,11 +37,11 @@ const SignupPage = () => {
       });
 
       if (result.success) {
-        navigate('/verify-email', { 
-          state: { 
-            email: data.email, 
-            firstName: data.firstName 
-          } 
+        navigate('/verify-email', {
+          state: {
+            email: data.email,
+            firstName: data.firstName
+          }
         });
       }
     } catch (error) {
@@ -61,7 +61,7 @@ const SignupPage = () => {
             <Globe className="h-6 w-6 mr-2" />
             <span className="text-xl font-bold">GlobeTrotter</span>
           </Link>
-          
+
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Create your account
           </h1>

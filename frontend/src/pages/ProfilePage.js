@@ -24,7 +24,7 @@ import {
   Settings,
   LogOut
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../utils/toast';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -33,10 +33,9 @@ const ProfilePage = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
       navigate('/');
     } catch (error) {
-      toast.error('Logout failed');
+      showError('Logout failed');
     }
   };
 
@@ -87,7 +86,7 @@ const ProfilePage = () => {
       }
     } catch (error) {
       console.error('Error fetching profile data:', error);
-      toast.error('Failed to load profile data');
+      showError('Failed to load profile data');
     } finally {
       setIsLoading(false);
     }
@@ -115,13 +114,13 @@ const ProfilePage = () => {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+      showError('Please select an image file');
       return;
     }
 
     // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size should be less than 5MB');
+      showError('Image size should be less than 5MB');
       return;
     }
 
@@ -140,11 +139,11 @@ const ProfilePage = () => {
 
       if (response.data.success) {
         updateUser(response.data.user);
-        toast.success('Profile picture updated successfully');
+        showSuccess('Profile picture updated successfully');
       }
     } catch (error) {
       console.error('Error uploading profile picture:', error);
-      toast.error('Failed to upload profile picture');
+      showError('Failed to upload profile picture');
     } finally {
       setIsUploading(false);
     }
@@ -162,11 +161,10 @@ const ProfilePage = () => {
       if (response.data.success) {
         updateUser(response.data.user);
         setIsEditing(false);
-        toast.success('Profile updated successfully');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      showError('Failed to update profile');
     } finally {
       setIsLoading(false);
     }
@@ -175,12 +173,12 @@ const ProfilePage = () => {
   // Handle password change
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match');
+      showError('New passwords do not match');
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+      showError('Password must be at least 6 characters long');
       return;
     }
 
@@ -197,11 +195,10 @@ const ProfilePage = () => {
       if (response.data.success) {
         setShowPasswordModal(false);
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        toast.success('Password changed successfully');
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      toast.error(error.response?.data?.message || 'Failed to change password');
+      showError(error.response?.data?.message || 'Failed to change password');
     } finally {
       setIsLoading(false);
     }
@@ -220,11 +217,11 @@ const ProfilePage = () => {
       if (response.data.success) {
         fetchProfileData();
         fetchTripStats();
-        toast.success('Trip status updated successfully');
+        showSuccess('Trip status updated successfully');
       }
     } catch (error) {
       console.error('Error updating trip status:', error);
-      toast.error('Failed to update trip status');
+      showError('Failed to update trip status');
     }
   };
 
@@ -243,11 +240,11 @@ const ProfilePage = () => {
       if (response.data.success) {
         fetchProfileData();
         fetchTripStats();
-        toast.success('Trip deleted successfully');
+        showSuccess('Trip deleted successfully');
       }
     } catch (error) {
       console.error('Error deleting trip:', error);
-      toast.error('Failed to delete trip');
+      showError('Failed to delete trip');
     }
   };
 
@@ -509,8 +506,8 @@ const ProfilePage = () => {
               <button
                 onClick={() => setActiveTab('planned')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'planned'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 Planned Trips ({trips.planned.length})
@@ -518,8 +515,8 @@ const ProfilePage = () => {
               <button
                 onClick={() => setActiveTab('ongoing')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'ongoing'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 Ongoing Trips ({trips.ongoing.length})
@@ -527,8 +524,8 @@ const ProfilePage = () => {
               <button
                 onClick={() => setActiveTab('completed')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'completed'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 Previous Trips ({trips.completed.length})

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Globe, User, LogOut, Calendar, MapPin, Star, Clock, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import { showError } from '../utils/toast';
 import tripService from '../services/tripService';
 import { getDestinationImage } from '../utils/destinationImages';
 
@@ -17,10 +17,9 @@ const DashboardPage = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
       navigate('/');
     } catch (error) {
-      toast.error('Logout failed');
+      showError('Logout failed');
     }
   };
 
@@ -59,7 +58,7 @@ const DashboardPage = () => {
         setOngoingTrips(ongoing);
       } catch (error) {
         console.error('Error fetching trips:', error);
-        toast.error('Failed to load trips');
+        showError('Failed to load trips');
       } finally {
         setLoading(false);
       }
@@ -101,13 +100,10 @@ const DashboardPage = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/explore" className="text-gray-600 hover:text-gray-900 transition-colors">Explore</Link>
-            <Link to="/trips" className="text-gray-600 hover:text-gray-900 transition-colors">Trips</Link>
             <Link to="/calendar" className="text-gray-600 hover:text-gray-900 transition-colors flex items-center">
               <Calendar className="h-4 w-4 mr-1" />
               Calendar
             </Link>
-            <Link to="/inbox" className="text-gray-600 hover:text-gray-900 transition-colors">Inbox</Link>
             <Link to="/profile" className="text-gray-600 hover:text-gray-900 transition-colors">Profile</Link>
           </nav>
 

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import tripService from '../services/tripService';
-import toast from 'react-hot-toast';
+import { showError } from '../utils/toast';
 
 const TripCalendarPage = () => {
   const navigate = useNavigate();
@@ -33,10 +33,9 @@ const TripCalendarPage = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
       navigate('/');
     } catch (error) {
-      toast.error('Logout failed');
+      showError('Logout failed');
     }
   };
 
@@ -49,7 +48,7 @@ const TripCalendarPage = () => {
         setTrips(response.trips || []);
       } catch (error) {
         console.error('Error fetching trips:', error);
-        toast.error('Failed to load trips');
+        showError('Failed to load trips');
       } finally {
         setLoading(false);
       }
@@ -329,8 +328,8 @@ const TripCalendarPage = () => {
                 <button
                   onClick={() => setViewMode('month')}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === 'month'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
                     }`}
                 >
                   Calendar
@@ -338,8 +337,8 @@ const TripCalendarPage = () => {
                 <button
                   onClick={() => setViewMode('list')}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === 'list'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
                     }`}
                 >
                   List

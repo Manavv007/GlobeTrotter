@@ -65,9 +65,6 @@ const LandingPage = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/explore" className="text-gray-600 hover:text-gray-900 transition-colors">Explore</Link>
-            <Link to="/trips" className="text-gray-600 hover:text-gray-900 transition-colors">Trips</Link>
-            <Link to="/inbox" className="text-gray-600 hover:text-gray-900 transition-colors">Inbox</Link>
           </nav>
 
           {/* Action Buttons */}
@@ -90,13 +87,13 @@ const LandingPage = () => {
 
       {/* Hero Section */}
       <section className="relative h-[600px] overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${selectedHeroImage})` }}
         >
           <div className="absolute inset-0 bg-black bg-opacity-40"></div>
         </div>
-        
+
         <div className="relative z-10 flex items-center justify-center h-full px-6">
           <div className="text-center text-white max-w-4xl">
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
@@ -105,7 +102,7 @@ const LandingPage = () => {
             <p className="text-xl md:text-2xl mb-8 opacity-90">
               Explore destinations, plan your trips, and create unforgettable memories.
             </p>
-            
+
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto">
               <div className="flex bg-white rounded-lg shadow-lg overflow-hidden">
@@ -132,7 +129,7 @@ const LandingPage = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Popular Destinations
           </h2>
-          
+
           {/* Horizontally Scrollable Cards */}
           <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide">
             {popularDestinations.map((destination, index) => (
@@ -176,7 +173,7 @@ const LandingPage = () => {
                   className="w-full h-full object-cover"
                 />
               </div>
-              
+
               {/* Right Side - Content */}
               <div className="p-8 lg:p-12 flex flex-col justify-center">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">

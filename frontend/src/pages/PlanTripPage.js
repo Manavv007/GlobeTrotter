@@ -29,7 +29,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../utils/toast';
 
 const PlanTripPage = () => {
   const navigate = useNavigate();
@@ -38,10 +38,9 @@ const PlanTripPage = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
       navigate('/');
     } catch (error) {
-      toast.error('Logout failed');
+      showError('Logout failed');
     }
   };
 
@@ -106,12 +105,12 @@ const PlanTripPage = () => {
     const endDate = new Date(tripData.endDate);
 
     if (startDate < today) {
-      toast.error('Start date cannot be in the past');
+      showError('Start date cannot be in the past');
       return false;
     }
 
     if (endDate <= startDate) {
-      toast.error('End date must be after start date');
+      showError('End date must be after start date');
       return false;
     }
 
@@ -119,7 +118,7 @@ const PlanTripPage = () => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays > 6) {
-      toast.error('Trip duration cannot exceed 6 days');
+      showError('Trip duration cannot exceed 6 days');
       return false;
     }
 
@@ -129,22 +128,22 @@ const PlanTripPage = () => {
   // Form validation
   const validateForm = () => {
     if (!tripData.startPlace.trim()) {
-      toast.error('Please enter a start place');
+      showError('Please enter a start place');
       return false;
     }
 
     if (!tripData.endPlace.trim()) {
-      toast.error('Please enter a destination');
+      showError('Please enter a destination');
       return false;
     }
 
     if (!tripData.startDate) {
-      toast.error('Please select a start date');
+      showError('Please select a start date');
       return false;
     }
 
     if (!tripData.endDate) {
-      toast.error('Please select an end date');
+      showError('Please select an end date');
       return false;
     }
 
@@ -155,7 +154,7 @@ const PlanTripPage = () => {
     // Additional check for 6-day limit
     const duration = getTripDuration();
     if (duration && duration > 6) {
-      toast.error('Trip duration cannot exceed 6 days');
+      showError('Trip duration cannot exceed 6 days');
       return false;
     }
 
@@ -207,7 +206,7 @@ const PlanTripPage = () => {
           ...prev,
           endDate: ''
         }));
-        toast.info('End date has been reset. Please select a date within 6 days of the start date.');
+        showError('End date has been reset. Please select a date within 6 days of the start date.');
       }
     }
   };
@@ -234,7 +233,10 @@ const PlanTripPage = () => {
 
   // Handle place selection
   const selectPlace = (place, field, setSuggestions, setShowSuggestions) => {
-    handleInputChange(field, place.description);
+    setTripData(prev => ({
+      ...prev,
+      [field]: place.description
+    }));
     setSuggestions([]);
     setShowSuggestions(false);
   };
@@ -248,7 +250,7 @@ const PlanTripPage = () => {
       }));
       setActiveStopIndex(tripData.stops.length);
     } else {
-      toast.error('Maximum 5 stops allowed');
+      showError('Maximum 5 stops allowed');
     }
   };
 
@@ -381,17 +383,17 @@ const PlanTripPage = () => {
       setItinerary(result.trip || []);
       setShowItinerary(true);
 
-      toast.success(`Generated ${result.totalDays || 0} day itinerary for your trip!`);
+      showSuccess(`Generated ${result.totalDays || 0} day itinerary for your trip!`);
     } catch (error) {
       console.error('Error generating itinerary:', error);
 
       // Show more specific error messages
       if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        showError(error.response.data.message);
       } else if (error.message) {
-        toast.error(error.message);
+        showError(error.message);
       } else {
-        toast.error('Failed to generate itinerary. Please check your API configuration.');
+        showError('Failed to generate itinerary. Please check your API configuration.');
       }
     } finally {
       setIsLoading(false);
@@ -401,7 +403,7 @@ const PlanTripPage = () => {
   // Save generated itinerary as planned trip
   const saveItineraryAsTrip = async () => {
     if (!itinerary || itinerary.length === 0) {
-      toast.error('No itinerary to save. Please generate an itinerary first.');
+      showError('No itinerary to save. Please generate an itinerary first.');
       return;
     }
 
@@ -423,16 +425,16 @@ const PlanTripPage = () => {
       });
 
       if (response.data.success) {
-        toast.success('Itinerary saved as planned trip successfully!');
+        showSuccess('Itinerary saved as planned trip successfully!');
         // Optionally navigate to profile page to view the saved trip
         navigate('/profile');
       }
     } catch (error) {
       console.error('Error saving itinerary:', error);
       if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        showError(error.response.data.message);
       } else {
-        toast.error('Failed to save itinerary. Please try again.');
+        showError('Failed to save itinerary. Please try again.');
       }
     } finally {
       setIsSavingTrip(false);
@@ -457,7 +459,7 @@ const PlanTripPage = () => {
     // Validate required fields
     if (!customTripData.title || !customTripData.startDate || !customTripData.endDate ||
       !customTripData.startPlace || !customTripData.endPlace) {
-      toast.error('Please fill in all required fields');
+      showError('Please fill in all required fields');
       return;
     }
 
@@ -466,7 +468,7 @@ const PlanTripPage = () => {
     const end = new Date(customTripData.endDate);
 
     if (start >= end) {
-      toast.error('End date must be after start date');
+      showError('End date must be after start date');
       return;
     }
 
@@ -485,7 +487,7 @@ const PlanTripPage = () => {
       });
 
       if (response.data.success) {
-        toast.success('Custom trip created successfully!');
+        showSuccess('Custom trip created successfully!');
         setShowAddItineraryModal(false);
         // Reset form
         setCustomTripData({
@@ -505,9 +507,9 @@ const PlanTripPage = () => {
     } catch (error) {
       console.error('Error creating custom trip:', error);
       if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        showError(error.response.data.message);
       } else {
-        toast.error('Failed to create custom trip. Please try again.');
+        showError('Failed to create custom trip. Please try again.');
       }
     } finally {
       setIsCreatingCustomTrip(false);
@@ -517,13 +519,13 @@ const PlanTripPage = () => {
   // Select package
   const selectPackage = (pkg) => {
     setSelectedPackages(prev => [...prev, pkg]);
-    toast.success(`Added ${pkg.title} to your selection`);
+    showSuccess(`Added ${pkg.title} to your selection`);
   };
 
   // View itinerary
   const viewItinerary = () => {
     if (selectedPackages.length === 0) {
-      toast.error('Please select at least one package');
+      showError('Please select at least one package');
       return;
     }
 
@@ -752,7 +754,10 @@ const PlanTripPage = () => {
                       {startSuggestions.map((place, index) => (
                         <div
                           key={index}
-                          onClick={() => selectPlace(place, 'startPlace', setStartSuggestions, setShowStartSuggestions)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectPlace(place, 'startPlace', setStartSuggestions, setShowStartSuggestions);
+                          }}
                           className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
                         >
                           <div className="font-medium text-gray-900">{place.main_text}</div>
@@ -794,7 +799,10 @@ const PlanTripPage = () => {
                       {endSuggestions.map((place, index) => (
                         <div
                           key={index}
-                          onClick={() => selectPlace(place, 'endPlace', setEndSuggestions, setShowEndSuggestions)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectPlace(place, 'endPlace', setEndSuggestions, setShowEndSuggestions);
+                          }}
                           className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
                         >
                           <div className="font-medium text-gray-900">{place.main_text}</div>
@@ -897,7 +905,10 @@ const PlanTripPage = () => {
                         {stopSuggestions.map((place, placeIndex) => (
                           <div
                             key={placeIndex}
-                            onClick={() => selectStop(place, index)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              selectStop(place, index);
+                            }}
                             className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
                           >
                             <div className="font-medium text-gray-900">{place.main_text}</div>

@@ -4,12 +4,13 @@
   "description": "GlobeTrotter - Travel Planning Application",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "cd backend && npm run dev",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm start",
     "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "build": "cd frontend && npm run build",
-    "start": "cd backend && npm start"
+    "start": "cd frontend && npm start",
+    "dev:all": "concurrently \"npm run server\" \"npm run client\""
   },
   "keywords": [
     "travel",

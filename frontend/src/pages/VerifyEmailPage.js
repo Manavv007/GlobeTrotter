@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Mail, Globe, ArrowLeft, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../utils/toast';
 import axios from 'axios';
 
 const VerifyEmailPage = () => {
@@ -14,7 +14,7 @@ const VerifyEmailPage = () => {
   const navigate = useNavigate();
   const { token } = useParams();
   const { resendVerification } = useAuth();
-  
+
   // Get email and status from query params
   const searchParams = new URLSearchParams(location.search);
   const email = location.state?.email || searchParams.get('email');
@@ -37,11 +37,11 @@ const VerifyEmailPage = () => {
   const handleEmailVerification = async (verificationToken) => {
     setIsVerifying(true);
     console.log('Starting verification for token:', verificationToken);
-    
+
     try {
       const response = await axios.get(`/api/auth/verify-email/${verificationToken}`);
       console.log('Verification response:', response.data);
-      
+
       if (response.data.success) {
         setVerificationStatus('success');
         // Extract email from the response or use a default
@@ -60,16 +60,16 @@ const VerifyEmailPage = () => {
 
   const handleResendVerification = async () => {
     if (!email) {
-      toast.error('Email address not found. Please try signing up again.');
+      showError('Email address not found. Please try signing up again.');
       return;
     }
 
     setIsResending(true);
     try {
       await resendVerification(email);
-      toast.success('Verification email sent successfully!');
+      showSuccess('Verification email sent successfully!');
     } catch (error) {
-      toast.error(error.message || 'Failed to resend verification email');
+      showError(error.message || 'Failed to resend verification email');
     } finally {
       setIsResending(false);
     }
@@ -90,13 +90,13 @@ const VerifyEmailPage = () => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Home
             </Link>
-            
+
             <div className="flex justify-center mb-4">
               <div className="bg-primary-600 p-3 rounded-full">
                 <Globe className="h-8 w-8 text-white" />
               </div>
             </div>
-            
+
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Email Verified!
             </h2>
@@ -120,7 +120,7 @@ const VerifyEmailPage = () => {
                 <h3 className="text-xl font-semibold text-gray-900">
                   Welcome to GlobeTrotter!
                 </h3>
-                
+
                 <p className="text-gray-600">
                   Your email has been verified successfully. You can now sign in to your account and start planning your adventures!
                 </p>
@@ -134,7 +134,7 @@ const VerifyEmailPage = () => {
                 >
                   Sign In to Your Account
                 </button>
-                
+
                 <Link to="/" className="btn-outline w-full block text-center">
                   Back to Home
                 </Link>
@@ -157,13 +157,13 @@ const VerifyEmailPage = () => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Home
             </Link>
-            
+
             <div className="flex justify-center mb-4">
               <div className="bg-primary-600 p-3 rounded-full">
                 <Globe className="h-8 w-8 text-white" />
               </div>
             </div>
-            
+
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Verification Failed
             </h2>
@@ -187,9 +187,9 @@ const VerifyEmailPage = () => {
                 <h3 className="text-xl font-semibold text-gray-900">
                   Invalid Verification Link
                 </h3>
-                
+
                 <p className="text-gray-600">
-                  {error === 'server_error' 
+                  {error === 'server_error'
                     ? 'There was an error processing your verification. Please try again or contact support.'
                     : 'The verification link you clicked is either invalid or has expired. Please request a new verification email.'
                   }
@@ -214,7 +214,7 @@ const VerifyEmailPage = () => {
                     )}
                   </button>
                 )}
-                
+
                 <Link to="/signup" className="btn-outline w-full block text-center">
                   Create New Account
                 </Link>
@@ -237,13 +237,13 @@ const VerifyEmailPage = () => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Home
             </Link>
-            
+
             <div className="flex justify-center mb-4">
               <div className="bg-primary-600 p-3 rounded-full">
                 <Globe className="h-8 w-8 text-white" />
               </div>
             </div>
-            
+
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Verifying Email
             </h2>
@@ -267,7 +267,7 @@ const VerifyEmailPage = () => {
                 <h3 className="text-xl font-semibold text-gray-900">
                   Verifying your email address
                 </h3>
-                
+
                 <p className="text-gray-600">
                   This should only take a moment...
                 </p>
@@ -289,13 +289,13 @@ const VerifyEmailPage = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Home
           </Link>
-          
+
           <div className="flex justify-center mb-4">
             <div className="bg-primary-600 p-3 rounded-full">
               <Globe className="h-8 w-8 text-white" />
             </div>
           </div>
-          
+
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
             Check Your Email
           </h2>
@@ -319,17 +319,17 @@ const VerifyEmailPage = () => {
               <h3 className="text-xl font-semibold text-gray-900">
                 Verify your email address
               </h3>
-              
+
               <p className="text-gray-600">
                 {firstName ? `Hi ${firstName}, ` : ''}We've sent a verification link to:
               </p>
-              
+
               {email && (
                 <p className="text-primary-600 font-medium break-all">
                   {email}
                 </p>
               )}
-              
+
               <p className="text-gray-600 text-sm">
                 Click the link in the email to verify your account and start planning your adventures!
               </p>
