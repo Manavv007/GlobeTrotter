@@ -45,10 +45,9 @@ coverage/
 .cache
 .parcel-cache
 
-# Next.js build output
+# Build outputs
+build/
 .next
-
-# Nuxt.js build / generate output
 .nuxt
 dist
 
