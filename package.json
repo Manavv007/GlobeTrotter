@@ -1,0 +1,33 @@
+{
+  "name": "globetrotter",
+  "version": "1.0.0",
+  "description": "GlobeTrotter - Travel Planning Application",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd backend && npm run dev",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm start",
+    "dev:all": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "keywords": [
+    "travel",
+    "planning",
+    "authentication",
+    "mongodb",
+    "react",
+    "nodejs"
+  ],
+  "author": "GlobeTrotter Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.11.0",
+    "multer": "^2.0.2"
+  }
+}
