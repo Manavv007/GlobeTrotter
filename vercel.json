@@ -29,6 +29,5 @@
   ],
   "env": {
     "REACT_APP_API_URL": "https://your-backend-url.railway.app"
-  },
-  "buildCommand": "cd frontend && npm install && npm run build"
+  }
 }
