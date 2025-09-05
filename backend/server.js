@@ -22,7 +22,7 @@ const TripStatusUpdater = require('./utils/tripStatusUpdater');
 const { cleanupExpiredSessions } = require('./utils/sessionCleanup');
 
 const app = express();
-const PORT = process.env.PORT || 5001; // Use 5001 to avoid conflicts
+const PORT = process.env.PORT || 3000; // Railway will set PORT automatically
 
 // Trust proxy for rate limiting
 app.set('trust proxy', 1);
